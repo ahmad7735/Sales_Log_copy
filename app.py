@@ -228,7 +228,6 @@ def build_filters_ui(df: pd.DataFrame, key_prefix: str, date_col: str = "SentDat
     return filtered, selected_rep, start_date, end_date
 
 
-
 def apply_saved_filters(df: pd.DataFrame, key_prefix: str, date_col: str = "SentDate"):
     """Re-apply the last chosen filters without re-rendering the sidebar UI."""
     state = st.session_state.get(f"{key_prefix}_filters", {})
@@ -643,6 +642,31 @@ if page == "Sales Log":
             st.session_state["quote_id_input"] = int(generate_unique_quote_id(area, sales))
             st.session_state["last_area"] = area
 
+        # --- Sales Rep options for the form ---
+        rep_options = []
+
+        if "SalesRep" in sales.columns:
+            rep_options = (
+                sales["SalesRep"]
+                .dropna()
+                .astype(str)
+                .str.strip()
+                .replace("", pd.NA)
+                .dropna()
+                .unique()
+                .tolist()
+            )
+
+        # Make sure "Jonas Ofori" is present and at the top
+        if "Jonas Ofori" not in rep_options:
+            rep_options = ["Jonas Ofori"] + rep_options
+        else:
+            # Move "Jonas Ofori" to the front
+            rep_options = ["Jonas Ofori"] + [r for r in rep_options if r != "Jonas Ofori"]
+
+        # Add UI helpers
+        rep_options = ["Select"] + rep_options
+        
         # ---- Single, non-nested form for the rest of the fields ----
         with st.form("add_sale_form"):
             # Editable Quote ID (bound to the same key; no `value=` to avoid the warning)
@@ -661,7 +685,12 @@ if page == "Sales Log":
 
             client = st.text_input("Client *")
             status = st.selectbox("Status *", ["Sent", "Won", "Lost"])
-            sales_rep = st.text_input("Sales Rep *")
+            sales_rep_choice = st.selectbox("Sales Rep *", rep_options, index=1)
+            if sales_rep_choice == "Other…":
+                sales_rep = st.text_input("Enter Sales Rep", key="sales_rep_other").strip()
+            else:
+                sales_rep = "" if sales_rep_choice == "— Select —" else sales_rep_choice
+
             sent_date = st.date_input("Sent Date *")
             job_type = st.text_input("Job Type *")
 
